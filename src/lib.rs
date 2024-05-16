@@ -1,4 +1,5 @@
-use halo2_proofs::arithmetic::FieldExt;
+pub use pairing;
+use crate::pairing::arithmetic::FieldExt;
 
 pub enum ReduceRule<F: FieldExt> {
     Bytes(Vec<u8>, usize),
@@ -107,10 +108,10 @@ impl<F: FieldExt> Reduce<F> {
 
 #[cfg(test)]
 mod tests {
+    use crate::pairing::arithmetic::FieldExt;
+    use crate::pairing::bn256::Fr;
     use super::Reduce;
     use super::ReduceRule;
-    use halo2_proofs::arithmetic::FieldExt;
-    use halo2_proofs::pairing::bn256::Fr;
     fn new_reduce(rules: Vec<ReduceRule<Fr>>) -> Reduce<Fr> {
         Reduce { cursor: 0, rules }
     }

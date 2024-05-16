@@ -14,7 +14,7 @@ path = "src/lib.rs"
 
 [dependencies]
 ff = "0.12"
-halo2_proofs = { git = "https://github.com/DelphinusLab/halo2-gpu-specific.git", default-features = true }
+pairing = { git = "https://github.com/lanbones/pairing", package = "pairing_bn256"}
 
 [features]
 default = []
