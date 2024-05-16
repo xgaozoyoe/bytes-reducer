@@ -1,13 +1,15 @@
-pub use pairing;
-use crate::pairing::arithmetic::FieldExt;
+use crate::bn256::Fr;
+pub use halo2curves::bn256;
+use halo2curves::ff::{Field, PrimeField};
+use num_bigint::BigUint;
 
-pub enum ReduceRule<F: FieldExt> {
+pub enum ReduceRule {
     Bytes(Vec<u8>, usize),
-    Field(F, usize), // F * shiftbits
+    Field(Fr, usize), // F * shiftbits
     U64(u64),
 }
 
-impl<F: FieldExt> ReduceRule<F> {
+impl ReduceRule {
     fn nb_inputs(&self) -> usize {
         match self {
             ReduceRule::Bytes(_, a) => *a, // a * u64
@@ -22,9 +24,9 @@ impl<F: FieldExt> ReduceRule<F> {
                 x.append(&mut bytes);
             } // a * u64
             ReduceRule::Field(ref mut x, shift) => {
-                let mut acc = F::from_u128(v as u128);
+                let mut acc = Fr::from_u128(v as u128);
                 for _ in 0..offset {
-                    acc = acc * F::from_u128(1u128 << *shift)
+                    acc = acc * Fr::from_u128(1u128 << *shift)
                 }
                 *x = *x + acc
             } // 4 * u64
@@ -37,14 +39,14 @@ impl<F: FieldExt> ReduceRule<F> {
     fn reset(&mut self) {
         match self {
             ReduceRule::Bytes(ref mut x, _) => x.clear(), // a * u64
-            ReduceRule::Field(ref mut x, _shift) => *x = F::zero(), // 4 * u64
+            ReduceRule::Field(ref mut x, _shift) => *x = Fr::ZERO, // 4 * u64
             ReduceRule::U64(ref mut x) => {
                 *x = 0;
             } // 1 * u64
         }
     }
 
-    pub fn field_value(&self) -> Option<F> {
+    pub fn field_value(&self) -> Option<Fr> {
         match self {
             ReduceRule::Bytes(_, _) => None,
             ReduceRule::Field(f, _) => Some(*f), // 4 * u64
@@ -67,13 +69,13 @@ impl<F: FieldExt> ReduceRule<F> {
     }
 }
 
-pub struct Reduce<F: FieldExt> {
+pub struct Reduce {
     pub cursor: usize,
-    pub rules: Vec<ReduceRule<F>>,
+    pub rules: Vec<ReduceRule>,
 }
 
-impl<F: FieldExt> Reduce<F> {
-    pub fn new(rules: Vec<ReduceRule<F>>) -> Self {
+impl Reduce {
+    pub fn new(rules: Vec<ReduceRule>) -> Self {
         Reduce { cursor: 0, rules }
     }
     pub fn total_len(&self) -> usize {
@@ -81,7 +83,7 @@ impl<F: FieldExt> Reduce<F> {
     }
 }
 
-impl<F: FieldExt> Reduce<F> {
+impl Reduce {
     /// take in a u64 value and update all the reduce rule accordingly
     pub fn reduce(&mut self, v: u64) {
         let mut cursor = self.cursor;
@@ -106,19 +108,54 @@ impl<F: FieldExt> Reduce<F> {
     }
 }
 
+pub fn bytes_to_u64(bytes: &[u8; 32]) -> [u64; 4] {
+    let r = bytes
+        .to_vec()
+        .chunks_exact(8)
+        .map(|x| u64::from_le_bytes(x.try_into().unwrap()))
+        .collect::<Vec<_>>();
+    r.try_into().unwrap()
+}
+
+pub fn field_to_bn(f: &Fr) -> BigUint {
+    let bytes = f.to_bytes();
+    BigUint::from_bytes_le(&bytes[..])
+}
+
+pub fn bn_to_field(bn: &BigUint) -> Fr {
+    let mut bytes = bn.to_bytes_le();
+    bytes.resize(48, 0);
+    let bytes = &bytes[..];
+    Fr::from_repr(bytes.try_into().unwrap()).unwrap()
+}
+
+pub fn bytes_to_field(bytes: &[u8; 32]) -> Fr {
+    Fr::from_repr(bytes.clone()).unwrap()
+}
+
+pub fn field_to_u32(f: &Fr) -> u32 {
+    let bytes = f.to_bytes();
+    u32::from_le_bytes(bytes[0..4].try_into().unwrap())
+}
+
+pub fn field_to_u64(f: &Fr) -> u64 {
+    let bytes = f.to_bytes();
+    u64::from_le_bytes(bytes[0..8].try_into().unwrap())
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::pairing::arithmetic::FieldExt;
-    use crate::pairing::bn256::Fr;
     use super::Reduce;
     use super::ReduceRule;
-    fn new_reduce(rules: Vec<ReduceRule<Fr>>) -> Reduce<Fr> {
+    use crate::bn256::Fr;
+    use halo2curves::ff::PrimeField;
+    fn new_reduce(rules: Vec<ReduceRule>) -> Reduce {
         Reduce { cursor: 0, rules }
     }
 
     #[test]
     fn test_reduce_bytes() {
-        let reducerule = ReduceRule::<Fr>::Bytes(vec![], 4);
+        let reducerule = ReduceRule::Bytes(vec![], 4);
         let mut reduce = Reduce {
             cursor: 0,
             rules: vec![reducerule],
@@ -128,7 +165,7 @@ mod tests {
 
     #[test]
     fn test_reduce_bytes_twice() {
-        let reducerule = ReduceRule::<Fr>::Bytes(vec![], 1);
+        let reducerule = ReduceRule::Bytes(vec![], 1);
         let mut reduce = Reduce {
             cursor: 0,
             rules: vec![reducerule],

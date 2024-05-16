@@ -14,7 +14,8 @@ path = "src/lib.rs"
 
 [dependencies]
 ff = "0.12"
-pairing = { git = "https://github.com/lanbones/pairing", package = "pairing_bn256"}
+halo2curves = { git = "https://github.com/xgaozoyoe/halo2curves.git" }
+num-bigint = { version = "0.4" }
 
 [features]
 default = []
