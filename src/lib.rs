@@ -124,7 +124,7 @@ pub fn field_to_bn(f: &Fr) -> BigUint {
 
 pub fn bn_to_field(bn: &BigUint) -> Fr {
     let mut bytes = bn.to_bytes_le();
-    bytes.resize(48, 0);
+    bytes.resize(32, 0);
     let bytes = &bytes[..];
     Fr::from_repr(bytes.try_into().unwrap()).unwrap()
 }
